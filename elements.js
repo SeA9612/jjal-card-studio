@@ -21,7 +21,11 @@ export function validateElements(items, validateImage) {
     }
     if (item.type === 'shape') {
       if (!SHAPES.includes(item.shape) || !color(item.color)) throw new Error('도형 종류 또는 색상이 올바르지 않습니다.');
-      return { ...base, shape:item.shape, color:item.color };
+      const result={ ...base, shape:item.shape, color:item.color };
+      for(const key of ['fillOpacity','strokeOpacity'])if(item[key]!==undefined){if(!finite(item[key],0,1))throw new Error('도형 내부 또는 테두리 불투명도가 올바르지 않습니다.');result[key]=item[key];}
+      if(item.strokeWidth!==undefined){if(!finite(item.strokeWidth,0,80))throw new Error('테두리 두께가 올바르지 않습니다.');result.strokeWidth=item.strokeWidth;}
+      if(item.strokeColor!==undefined){if(!color(item.strokeColor))throw new Error('테두리 색상이 올바르지 않습니다.');result.strokeColor=item.strokeColor;}
+      return result;
     }
     if (!item.image) throw new Error('이미지 요소의 이미지가 없습니다.');
     return { ...base, image:validateImage(item.image) };

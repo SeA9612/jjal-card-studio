@@ -20,3 +20,14 @@ export function drawShapePath(ctx,shape,x,y,w,h){
     point(.14,.03,true);point(.86,.03);ctx.quadraticCurveTo(x+.98*w,y+.03*h,x+.98*w,y+.17*h);point(.98,.64);ctx.quadraticCurveTo(x+.98*w,y+.78*h,x+.86*w,y+.78*h);point(.43,.78);point(.18,.98);point(.23,.78);point(.14,.78);ctx.quadraticCurveTo(x+.02*w,y+.78*h,x+.02*w,y+.64*h);point(.02,.17);ctx.quadraticCurveTo(x+.02*w,y+.03*h,x+.14*w,y+.03*h);ctx.closePath();
   }
 }
+
+export function paintShape(ctx,item,x,y,w,h){
+  ctx.save();
+  const strokeWidth=Math.min(item.strokeWidth??0,w,h),inset=strokeWidth/2;
+  drawShapePath(ctx,item.shape,x+inset,y+inset,Math.max(0,w-strokeWidth),Math.max(0,h-strokeWidth));
+  const fillOpacity=(item.opacity??1)*(item.fillOpacity??1);
+  if(fillOpacity>0){ctx.globalAlpha=fillOpacity;ctx.fillStyle=item.color;ctx.fill();}
+  const strokeOpacity=(item.opacity??1)*(item.strokeOpacity??1);
+  if(strokeWidth>0&&strokeOpacity>0){ctx.globalAlpha=strokeOpacity;ctx.strokeStyle=item.strokeColor??'#28251f';ctx.lineWidth=strokeWidth;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();}
+  ctx.restore();
+}

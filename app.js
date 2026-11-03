@@ -1,6 +1,7 @@
-import { drawShapePath } from './shapes.js?v=20261103-flextext1';
-import { DEFAULT, RATIOS, PALETTES, STARTERS, planElementText, validateDocument, validateBackup, validateImage, identifyImage } from './core.js?v=20261103-flextext1';
-import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261103-flextext1';
+import { encodeImage } from './export.js?v=20261103-outline1';
+import { paintShape } from './shapes.js?v=20261103-outline1';
+import { DEFAULT, RATIOS, PALETTES, STARTERS, planElementText, validateDocument, validateBackup, validateImage, identifyImage } from './core.js?v=20261103-outline1';
+import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261103-outline1';
 import { readAll, readSetting, writeSetting, transaction } from './storage.js';
 
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
@@ -49,7 +50,7 @@ async function renderArtwork(documentState) {
     const x=item.x*W,y=item.y*H,w=item.width*W,h=item.height*H;ctx.save();ctx.globalAlpha=item.opacity;
     if(item.type==='image')ctx.drawImage(await imageElement(item.image.dataUrl),x,y,w,h);
     if(item.type==='shape'){
-      ctx.fillStyle=item.color;drawShapePath(ctx,item.shape,x,y,w,h);ctx.fill();
+      paintShape(ctx,item,x,y,w,h);
     }
     if(item.type==='text'){
       const family=item.font==='serif'?'"Batang","AppleMyungjo","Georgia",serif':'"Malgun Gothic","Apple SD Gothic Neo","Segoe UI",sans-serif';
@@ -81,6 +82,8 @@ function select(id){selectedId=id;sync();}
 function sync(){
   const item=active();if(!item)selectedId=null;const text=item?.type==='text';
   $('#selection-hint').hidden=!!item;$('#text-tools').hidden=!text;$('#fill-tools').hidden=!item||item.type==='image';$('#object-tools').hidden=!item;$('#object-actions').hidden=!item;$('#object-credit').hidden=item?.type!=='image';
+  $('#shape-tools').hidden=item?.type!=='shape';$('#fill-label').textContent=item?.type==='shape'?'도형 내부색':'글자 색상';
+  if(item?.type==='shape'){const fill=Math.round((item.fillOpacity??1)*100),stroke=Math.round((item.strokeOpacity??1)*100);$('#fill-opacity').value=fill;$('#fill-opacity-output').textContent=fill+'%';$('#no-fill').checked=fill===0;$('#stroke-enabled').checked=(item.strokeWidth??0)>0;$('#stroke-color').value=item.strokeColor??'#28251f';$('#stroke-width').value=item.strokeWidth??0;$('#stroke-width-output').textContent=(item.strokeWidth??0)+' px';$('#stroke-opacity').value=stroke;$('#stroke-opacity-output').textContent=stroke+'%';}
   $('#selected-label').textContent=item?labelOf(item):'선택한 요소 없음';$('.tag').textContent=item?item.type.toUpperCase():'SELECT';
   $('#aspect-lock').closest('label').hidden=item?.type!=='image';
   if(text){$('#text').value=item.text;$('#font').value=item.font;$('#size').value=item.size;$('#size-output').textContent=item.size+' px';$('#char-count').textContent=item.text.length.toLocaleString()+' / 12,000';}
@@ -97,7 +100,7 @@ function change(patch,{record=true,clearSelection=false}={}){if('text' in patch 
 function updateSelected(patch,record=true){const item=active();if(!item)return;const next=fitElement(item,patch);change({elements:doc.elements.map(e=>e.id===item.id?next:e)},{record});}
 function addElement(item){if(doc.elements.length>=50)throw new Error('요소는 최대 50개까지 추가할 수 있습니다.');const element=fitElement({id:crypto.randomUUID(),opacity:1,...item},{});selectedId=element.id;change({elements:[...doc.elements,element]});}
 function addText(){addElement({type:'text',text:'새로운 문구',font:'sans',size:80,color:'#28251f',align:'left',x:.12,y:.35,width:.70,height:.22,autoHeight:true});$('#text').focus();}
-function addShape(shape){addElement({type:'shape',shape,color:'#f18a53',x:.25,y:.45,width:.35,height:.25});$('#shape-dialog').close();}
+function addShape(shape){addElement({type:'shape',shape,color:'#f18a53',fillOpacity:1,strokeColor:'#28251f',strokeWidth:4,strokeOpacity:1,x:.25,y:.45,width:.35,height:.25});$('#shape-dialog').close();}
 function duplicate(){const item=active();if(item)addElement({...item,id:crypto.randomUUID(),x:item.x+.025,y:item.y+.025});}
 function deleteElement(){const id=selectedId;if(!id)return;change({elements:doc.elements.filter(item=>item.id!==id)},{clearSelection:true});}
 $('#text').addEventListener('focus',()=>{if(active())checkpoint();});
@@ -109,6 +112,11 @@ for(const name of ['size','x','y','width','height','opacity']){
     updateSelected(patch,false);
   });
 }
+for(const [id,key,scale] of [['fill-opacity','fillOpacity',100],['stroke-width','strokeWidth',1],['stroke-opacity','strokeOpacity',100]]){const field=$('#'+id);field.addEventListener('pointerdown',()=>{if(active()?.type==='shape')checkpoint();});field.addEventListener('keydown',e=>{if(e.key.startsWith('Arrow')&&active()?.type==='shape')checkpoint();});field.addEventListener('input',e=>{if(active()?.type==='shape')updateSelected({[key]:Number(e.target.value)/scale},false);});}
+$('#no-fill').addEventListener('change',e=>updateSelected({fillOpacity:e.target.checked?0:1}));
+$('#stroke-enabled').addEventListener('change',e=>updateSelected({strokeWidth:e.target.checked?6:0}));
+$('#stroke-color').addEventListener('change',e=>updateSelected({strokeColor:e.target.value}));
+$('#export-format').addEventListener('change',()=>{$('[data-action=download]').textContent='↓ '+$('#export-format').value.toUpperCase()+' 다운로드';});
 $('#font').addEventListener('change',e=>updateSelected({font:e.target.value}));$('#color').addEventListener('change',e=>updateSelected({color:e.target.value}));$$('[data-color]').forEach(b=>b.addEventListener('click',()=>updateSelected({color:b.dataset.color})));
 $$('[data-ratio]').forEach(b=>b.addEventListener('click',()=>change({ratio:b.dataset.ratio})));
 $('#decorations').addEventListener('change',e=>change({decorations:e.target.checked}));$('#background-color').addEventListener('change',e=>change({backgroundColor:e.target.value,decorations:false,image:null}));
@@ -194,11 +202,11 @@ $('#credit-form').addEventListener('submit',e=>{
 });
 
 function downloadBlob(blob,filename){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
-async function downloadPNG(documentState,name='frame-card'){
+async function downloadImage(documentState,name='frame-card',format='png'){
   await document.fonts.ready;const result=await renderArtwork(validateDocument(documentState));if(result.layout.overflow)throw new Error('문구가 영역을 넘습니다. 글을 줄이거나 위치를 조정한 뒤 저장해 주세요.');
-  const blob=await new Promise(resolve=>result.canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('PNG 파일을 만들지 못했습니다.');downloadBlob(blob,name+'-'+documentState.ratio.replace(':','x')+'.png');
+  const {blob,extension,label}=await encodeImage(result.canvas,format);downloadBlob(blob,name+'-'+documentState.ratio.replace(':','x')+'.'+extension);
   const credit=documentState.image?.credit||{kind:'own',url:'',license:'직접 구성한 도형 배경'};
-  $('#save-state').textContent='● PNG 생성 완료 · '+(credit.kind==='own'?'본인 제작 배경':'외부 이미지 출처 기록됨');
+  $('#save-state').textContent='● '+label+' 생성 완료 · '+(credit.kind==='own'?'본인 제작 배경':'외부 이미지 출처 기록됨');
 }
 async function exportJSON(){await refreshTemplates();const backup={app:'jjal-card-studio',version:1,exportedAt:new Date().toISOString(),templates};downloadBlob(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),'jjal-card-templates.json');$('#backup-result').textContent=`템플릿 ${templates.length}개를 JSON으로 내보냈습니다.`;}
 $('#json-input').addEventListener('change',async e=>{
@@ -213,7 +221,7 @@ $('#json-input').addEventListener('change',async e=>{
     await transaction('templates',store=>additions.forEach(t=>store.put(t)));await refreshTemplates();library='mine';await displayLibrary();result.textContent=`템플릿 ${additions.length}개를 복원했습니다. 기존 템플릿도 유지됩니다.`;
   }catch(error){result.textContent=safeError(error)+' 기존 템플릿과 편집 내용은 변경하지 않았습니다.';toast(result.textContent,true);}
 });
-async function showGallery(){const grid=$('#gallery-grid');grid.replaceChildren();for(let i=0;i<STARTERS.length;i++){const item=STARTERS[i],article=document.createElement('article');article.className='gallery-item';const img=document.createElement('img');img.src=`./examples/card-${i+1}.png`;img.alt=item.name+' 완성 이미지';const title=document.createElement('h3');title.textContent=item.name+' · '+item.doc.ratio;const button=document.createElement('button');button.textContent='PNG 다운로드';button.addEventListener('click',()=>downloadPNG(item.doc,'example-'+(i+1)).catch(error=>toast(safeError(error),true)));article.append(img,title,button);grid.append(article);}$('#gallery-dialog').showModal();}
+async function showGallery(){const format=$('#export-format').value;const grid=$('#gallery-grid');grid.replaceChildren();for(let i=0;i<STARTERS.length;i++){const item=STARTERS[i],article=document.createElement('article');article.className='gallery-item';const img=document.createElement('img');img.src=`./examples/card-${i+1}.png`;img.alt=item.name+' 완성 이미지';const title=document.createElement('h3');title.textContent=item.name+' · '+item.doc.ratio;const button=document.createElement('button');button.textContent=format.toUpperCase()+' 다운로드';button.addEventListener('click',()=>downloadImage(item.doc,'example-'+(i+1),format).catch(error=>toast(safeError(error),true)));article.append(img,title,button);grid.append(article);}$('#gallery-dialog').showModal();}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-action]');if(!b)return;
   try{switch(b.dataset.action){
@@ -243,7 +251,7 @@ document.addEventListener('click',async e=>{
     case 'reset':confirmAction('처음 디자인으로 돌아가기','현재 편집 내용을 기본 디자인으로 바꿀까요? 저장한 템플릿은 유지되며, 되돌리기로 복구할 수 있습니다.',()=>{++uploadRevision;change({...DEFAULT,elements:elementsOf(DEFAULT),decorations:true,backgroundColor:PALETTES[0][0]},{clearSelection:true});});break;
     case 'undo':if(history.length){future.push({...doc});doc=history.pop();sync();markSave();}break;
     case 'redo':if(future.length){history.push({...doc});doc=future.pop();sync();markSave();}break;
-    case 'download':await downloadPNG({...doc});toast('PNG 다운로드를 시작했습니다.');break;
+    case 'download':{const format=$('#export-format').value;await downloadImage({...doc},'frame-card',format);toast(format.toUpperCase()+' 다운로드를 시작했습니다.');break;}
   }}catch(error){toast(safeError(error),true);}
 });
 window.addEventListener('resize',()=>draw());

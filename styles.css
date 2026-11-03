@@ -54,3 +54,10 @@ html[data-theme=light] .guide-grid p{color:#62605b}
 .stage .workarea{flex:0 0 auto;min-height:490px}.rail button{word-break:keep-all}
 .inspector #selected-label{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:600px){.inspector{display:flex}.shape-grid{grid-template-columns:1fr 1fr}.add-bar{gap:6px}.add-bar>button:not(.text-button){padding:7px 9px;font-size:11px}.add-bar .text-button{margin-left:0}.rail{flex-wrap:wrap}.rail button{min-width:44px}.selection .resize-handle{width:18px;height:18px;right:-9px;bottom:-9px}.layer-list{max-height:220px}}
+
+.header-actions{align-items:center}.export-actions{display:flex;align-items:stretch;gap:6px;max-width:100%}
+.export-actions select{width:76px;min-width:70px;background:var(--panel);padding:8px 10px;font-size:12px}
+.export-actions .primary{white-space:nowrap}
+.shape-tools{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.shape-border{display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--line);padding-top:13px}
+@media(max-width:600px){.header-actions>.export-actions{margin-left:auto}.export-actions select{min-width:65px;width:65px;padding:8px;font-size:12px}}
