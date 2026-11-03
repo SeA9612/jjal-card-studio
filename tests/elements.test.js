@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { DEFAULT, validateDocument, validateBackup } from '../core.js';
+import { upgradeDocument, elementsOf, fitElement, hitElement, reorderElement } from '../elements.js';
+const shape=(id='shape-1')=>({id,type:'shape',shape:'rect',x:.2,y:.3,width:.3,height:.2,color:'#f18a53',opacity:1});
+const text=()=>({id:'text-2',type:'text',text:'두 번째 문구 👨‍👩‍👧‍👦',font:'sans',size:72,color:'#28251f',align:'center',x:.1,y:.1,width:.8,height:.2,opacity:.7});
+const image=()=>({id:'image-1',type:'image',x:0,y:0,width:.2,height:.2,opacity:1,image:{dataUrl:'data:image/png;base64,iVBORw0KGgoAAA=',width:1,height:1,credit:{kind:'own',url:'',license:''}}});
+test('기존 문서와 백업을 텍스트 요소로 이관하며 원문을 보존한다',()=>{const old={...DEFAULT};const upgraded=upgradeDocument(old);assert.equal(upgraded.elements.length,1);assert.equal(upgraded.elements[0].text,old.text);assert.equal(upgradeDocument(upgraded).elements.length,1);assert.equal(old.elements,undefined);});
+test('텍스트·이미지·도형이 JSON 백업 왕복 뒤 같은 순서로 유지된다',()=>{const doc={...DEFAULT,elements:[text(),image(),shape()],decorations:false,backgroundColor:'#ffffff'};const backup={app:'jjal-card-studio',version:1,templates:[{id:'template-1',name:'혼합 요소',updatedAt:'2026-11-03T00:00:00Z',doc}]};assert.deepEqual(validateBackup(JSON.parse(JSON.stringify(backup)))[0].doc,doc);});
+test('요소가 없는 카드도 저장할 수 있다',()=>{assert.deepEqual(validateDocument({...DEFAULT,elements:[]}).elements,[]);assert.deepEqual(elementsOf({...DEFAULT,text:''}),[]);});
+test('중복 ID·알 수 없는 도형·누락된 이미지·화면 밖 요소는 전체 가져오기를 거부한다',()=>{for(const elements of [[shape(),shape()],[{...shape(),shape:'script'}],[{...image(),image:null}],[{...shape(),x:.9}]])assert.throws(()=>validateDocument({...DEFAULT,elements}));});
+test('요소 50개 한도를 검사한다',()=>{assert.throws(()=>validateDocument({...DEFAULT,elements:Array.from({length:51},(_,i)=>shape('shape-'+i))}));});
+test('크기·위치 조절은 다른 요소를 바꾸지 않고 캔버스 안으로 제한한다',()=>{const original=shape();const moved=fitElement(original,{x:2,y:-1,width:.6,height:.4});assert.equal(moved.x,.4);assert.equal(moved.y,0);assert.equal(original.x,.2);assert.equal(original.width,.3);});
+test('겹친 요소는 맨 앞을 선택하고 빈 곳에서는 선택이 해제된다',()=>{const a=shape('back'),b=shape('front');assert.equal(hitElement([a,b],.25,.35).id,'front');assert.equal(hitElement([a,b],.99,.99),null);assert.equal(hitElement([{...a,shape:'ellipse'}],.2,.3),null);});
+test('앞뒤 순서를 바꿔도 ID와 나머지 요소의 순서가 유지된다',()=>{const items=[shape('a'),shape('b'),shape('c')];assert.deepEqual(reorderElement(items,'b',1).map(x=>x.id),['a','c','b']);assert.deepEqual(items.map(x=>x.id),['a','b','c']);assert.equal(hitElement(reorderElement(items,'a',2),.25,.35).id,'a');});

@@ -32,3 +32,25 @@ html[data-theme=light] .guide-grid article{background:#f3f2ee;border-color:#dedb
 html[data-theme=light] .guide-grid small{color:#98491e}
 html[data-theme=light] .guide-grid p{color:#62605b}
 @media(max-width:600px){.header-actions{justify-content:flex-start;gap:7px}.theme-picker{margin-right:0}.theme-picker .theme-option{padding:6px 8px;font-size:11px}.header-actions>.primary{margin-left:auto}}
+
+.add-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.add-bar>button:not(.text-button){background:var(--panel);font-size:12px;padding:7px 12px}
+.add-bar .text-button{margin-left:auto}
+.tool-group{display:flex;flex-direction:column;gap:15px;min-width:0}
+.selection-hint{font-size:12px;line-height:1.9;color:var(--dim);padding:13px;background:var(--bg);border:1px dashed var(--line);border-radius:8px}
+.check-field{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--dim)}
+.check-field input{accent-color:var(--orange)}
+.layers-section{border-top:1px solid var(--line);padding-top:15px;display:flex;flex-direction:column;gap:9px}
+.layer-list{display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto}
+.layer-item{width:100%;justify-content:flex-start;text-align:left;gap:10px;font-size:12px;padding:8px 10px;min-width:0}
+.layer-item>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer-item>span:first-child{color:var(--orange);font-weight:700;min-width:18px;text-align:center}
+.object-actions{display:flex;gap:8px}.object-actions button{flex:1;font-size:12px}
+.shape-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.shape-grid button{flex-direction:column;gap:8px;font-size:12px;padding:16px 5px}.shape-grid span{font-size:30px;color:var(--orange)}
+.selection .resize-handle{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;min-height:0;padding:0;border:1px solid #422c1b;border-radius:1px;background:var(--orange);pointer-events:auto;cursor:nwse-resize;touch-action:none}
+.selection .resize-handle:hover{background:#ffb17e}
+.paper{cursor:default}.stage .workarea{cursor:default}
+.stage .workarea{flex:0 0 auto;min-height:490px}.rail button{word-break:keep-all}
+.inspector #selected-label{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:600px){.inspector{display:flex}.shape-grid{grid-template-columns:1fr 1fr}.add-bar{gap:6px}.add-bar>button:not(.text-button){padding:7px 9px;font-size:11px}.add-bar .text-button{margin-left:0}.rail{flex-wrap:wrap}.rail button{min-width:44px}.selection .resize-handle{width:18px;height:18px;right:-9px;bottom:-9px}.layer-list{max-height:220px}}
