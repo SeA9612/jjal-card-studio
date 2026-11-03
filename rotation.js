@@ -1,4 +1,8 @@
 export function normalizeRotation(value){return ((value+180)%360+360)%360-180;}
+export function draggedRotation(initial,startAngle,currentAngle,snap=false){
+  const angle=initial+(currentAngle-startAngle)*180/Math.PI;
+  return normalizeRotation(Math.round(snap?angle/15:angle)*(snap?15:1));
+}
 
 // Coordinates use actual canvas pixels so portrait cards rotate without distortion.
 export function unrotatePoint(item,x,y,W=1,H=1){

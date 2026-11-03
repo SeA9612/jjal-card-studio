@@ -1,4 +1,4 @@
-import { unrotatePoint } from './rotation.js?v=20261103-rotate1';
+import { unrotatePoint } from './rotation.js?v=20261103-handle1';
 const finite = (n,min,max) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max;
 const color = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 export const SHAPES = ['rect','ellipse','triangle','star','heart','bubble','roundrect','diamond','arrow','hexagon'];

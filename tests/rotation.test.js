@@ -1,10 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRotation, unrotatePoint, rotateContext, resizeInRotation } from '../rotation.js';
+import { normalizeRotation, draggedRotation, unrotatePoint, rotateContext, resizeInRotation } from '../rotation.js';
 import { hitElement } from '../elements.js';
 import { DEFAULT, validateBackup, validateDocument } from '../core.js';
 const item={id:'rotated',type:'shape',shape:'rect',x:.3,y:.3,width:.4,height:.1,opacity:1,color:'#f18a53',rotation:90};
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-9,`${a} != ${b}`);
+test('corner drag preserves initial rotation, crosses the angle seam, and snaps to 15 degrees',()=>{
+  assert.equal(draggedRotation(20,0,Math.PI/2),110);
+  assert.equal(draggedRotation(0,179*Math.PI/180,-179*Math.PI/180),2);
+  assert.equal(draggedRotation(-20,0,-Math.PI/4),-65);
+  assert.equal(draggedRotation(0,0,22*Math.PI/180,true),15);
+});
 test('portrait canvas selection follows the rotated object, not its old box',()=>{
   assert.equal(hitElement([item],.5,.46,1080,1920)?.id,item.id);
   assert.equal(hitElement([item],.31,.35,1080,1920),null);
