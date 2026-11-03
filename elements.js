@@ -33,7 +33,7 @@ export function elementsOf(doc) {
   const height=Math.min(.90-doc.y,Math.max(.12,estimatedLines*doc.size*1.34/canvasHeight+.025));
   return [{id:'original-text',type:'text',text:doc.text,font:doc.font,size:doc.size,color:doc.color,align:doc.align,x:doc.x,y:doc.y,width:Math.min(.82,1-doc.x),height,opacity:1}];
 }
-export function upgradeDocument(doc) { return { ...doc, elements:elementsOf(doc).map(item=>({...item})) }; }
+export function upgradeDocument(doc) { return { ...doc, text:'', elements:elementsOf(doc).map(item=>({...item})) }; }
 export function fitElement(element,patch) {
   const next={...element,...patch};
   next.width=Math.max(.02,Math.min(1,next.width));next.height=Math.max(.02,Math.min(1,next.height));
