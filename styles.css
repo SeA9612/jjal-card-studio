@@ -61,3 +61,5 @@ html[data-theme=light] .guide-grid p{color:#62605b}
 .shape-tools{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 .shape-border{display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--line);padding-top:13px}
 @media(max-width:600px){.header-actions>.export-actions{margin-left:auto}.export-actions select{min-width:65px;width:65px;padding:8px;font-size:12px}}
+
+.selection{transform-origin:center center}.rotation-tools{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}.rotation-value{display:flex;align-items:center;gap:8px;font-size:12px}.rotation-value input{width:85px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px}.rotation-buttons{display:flex;gap:5px}.rotation-buttons button{flex:1;font-size:11px;padding:7px 4px}

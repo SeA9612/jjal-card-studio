@@ -1,3 +1,4 @@
+import { unrotatePoint } from './rotation.js?v=20261103-rotate1';
 const finite = (n,min,max) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max;
 const color = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 export const SHAPES = ['rect','ellipse','triangle','star','heart','bubble','roundrect','diamond','arrow','hexagon'];
@@ -12,6 +13,7 @@ export function validateElements(items, validateImage) {
     if (!finite(item.x,0,.98) || !finite(item.y,0,.98) || !finite(item.width,.02,1) || !finite(item.height,.02,1) || !finite(item.opacity,0,1)) throw new Error('요소의 위치·크기·투명도가 올바르지 않습니다.');
     if (item.x + item.width > 1.001 || item.y + item.height > 1.001) throw new Error('요소가 캔버스 영역을 넘습니다.');
     const base = { id:item.id, type:item.type, x:item.x, y:item.y, width:item.width, height:item.height, opacity:item.opacity };
+    if(item.rotation!==undefined){if(!finite(item.rotation,-180,180))throw new Error('회전 각도가 올바르지 않습니다.');base.rotation=item.rotation;}
     if (item.type === 'text') {
       if (typeof item.text !== 'string' || item.text.length > 12000 || !['sans','serif'].includes(item.font) || !finite(item.size,12,240) || !color(item.color) || !['left','center','right'].includes(item.align)) throw new Error('텍스트 요소가 올바르지 않습니다.');
       const result={ ...base, text:item.text, font:item.font, size:item.size, color:item.color, align:item.align };
@@ -55,10 +57,10 @@ export function fitElement(element,patch) {
   next.x=Math.max(0,Math.min(1-next.width,next.x));next.y=Math.max(0,Math.min(1-next.height,next.y));
   return next;
 }
-export function hitElement(items,x,y) {
+export function hitElement(items,x,y,W=1,H=1) {
   for (let i=items.length-1;i>=0;i--) {
-    const e=items[i];if(e.opacity===0 || x<e.x || y<e.y || x>e.x+e.width || y>e.y+e.height)continue;
-    if(e.type==='shape'&&e.shape==='ellipse'&&((x-e.x)/e.width-.5)**2*4+((y-e.y)/e.height-.5)**2*4>1)continue;
+    const e=items[i],p=unrotatePoint(e,x,y,W,H);if(e.opacity===0 || p.x<e.x || p.y<e.y || p.x>e.x+e.width || p.y>e.y+e.height)continue;
+    if(e.type==='shape'&&e.shape==='ellipse'&&((p.x-e.x)/e.width-.5)**2*4+((p.y-e.y)/e.height-.5)**2*4>1)continue;
     return e;
   }
   return null;

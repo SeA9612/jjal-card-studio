@@ -1,4 +1,4 @@
-import { validateElements } from './elements.js?v=20261103-outline1';
+import { validateElements } from './elements.js?v=20261103-rotate1';
 export const RATIOS = { '1:1': [1080, 1080], '4:5': [1080, 1350], '9:16': [1080, 1920] };
 export const DEFAULT = { text: '오늘을\n기록하는\n작은 취향.', ratio: '4:5', font: 'sans', size: 100, color: '#28251f', x: .09, y: .23, align: 'left', preset: 0, image: null };
 export const PALETTES = [['#eadfcf', '#e58a54', '#28251f'], ['#bdd1d3', '#6988a9', '#233a46'], ['#eddc91', '#83945d', '#2f3522']];
