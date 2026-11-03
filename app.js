@@ -1,5 +1,6 @@
-import { DEFAULT, RATIOS, PALETTES, STARTERS, planText, validateDocument, validateBackup, validateImage, identifyImage } from './core.js?v=20261103-layers2';
-import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261103-layers2';
+import { drawShapePath } from './shapes.js?v=20261103-flextext1';
+import { DEFAULT, RATIOS, PALETTES, STARTERS, planElementText, validateDocument, validateBackup, validateImage, identifyImage } from './core.js?v=20261103-flextext1';
+import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261103-flextext1';
 import { readAll, readSetting, writeSetting, transaction } from './storage.js';
 
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
@@ -8,7 +9,7 @@ let doc = upgradeDocument(DEFAULT), selectedId = null, history = [], future = []
 let layout, revision = 0, saveTimer, drawTimer, toastTimer, templateEditId = null, confirmCallback, pendingImage = null, creditTarget = 'background', drag;
 let uploadRevision = 0, saveQueue = Promise.resolve(), storageReady = false;
 const imageCache = new Map(), objectLayouts = new Map();
-const shapeNames = {rect:'사각형',ellipse:'원',triangle:'삼각형',star:'별'};
+const shapeNames = {rect:'사각형',ellipse:'원',triangle:'삼각형',star:'별',heart:'하트',bubble:'말풍선',roundrect:'둥근 사각형',diamond:'마름모',arrow:'화살표',hexagon:'육각형'};
 const active = () => doc.elements.find(item=>item.id===selectedId);
 const labelOf = item => item.type==='text' ? (item.text.trim().split('\n')[0].slice(0,18)||'빈 텍스트') : item.type==='image'?'이미지':shapeNames[item.shape];
 const safeError = error => error?.name === 'QuotaExceededError' ? '브라우저 저장 공간이 부족합니다. JSON으로 백업한 뒤 불필요한 템플릿을 정리해 주세요.' : (error?.message || '처리하지 못했습니다. 다시 시도해 주세요.');
@@ -48,29 +49,26 @@ async function renderArtwork(documentState) {
     const x=item.x*W,y=item.y*H,w=item.width*W,h=item.height*H;ctx.save();ctx.globalAlpha=item.opacity;
     if(item.type==='image')ctx.drawImage(await imageElement(item.image.dataUrl),x,y,w,h);
     if(item.type==='shape'){
-      ctx.fillStyle=item.color;ctx.beginPath();
-      if(item.shape==='rect')ctx.rect(x,y,w,h);
-      if(item.shape==='ellipse')ctx.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2);
-      if(item.shape==='triangle'){ctx.moveTo(x+w/2,y);ctx.lineTo(x+w,y+h);ctx.lineTo(x,y+h);ctx.closePath();}
-      if(item.shape==='star'){for(let i=0;i<10;i++){const angle=-Math.PI/2+i*Math.PI/5,r=i%2?.43:1,px=x+w/2+Math.cos(angle)*w/2*r,py=y+h/2+Math.sin(angle)*h/2*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();}ctx.fill();
+      ctx.fillStyle=item.color;drawShapePath(ctx,item.shape,x,y,w,h);ctx.fill();
     }
     if(item.type==='text'){
       const family=item.font==='serif'?'"Batang","AppleMyungjo","Georgia",serif':'"Malgun Gothic","Apple SD Gothic Neo","Segoe UI",sans-serif';
       const measure=(text,size)=>{ctx.font=`750 ${size}px ${family}`;return ctx.measureText(text).width;};
-      const plan=planText({...item,ratio:documentState.ratio,boxWidth:item.width,boxHeight:item.height},measure);plan.inkWidth=Math.min(w,Math.max(20,...plan.lines.map(line=>measure(line,plan.size))));plans.set(item.id,plan);overflow ||= item.opacity>0 && !!item.text && plan.overflow;
-      ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.font=`750 ${plan.size}px ${family}`;ctx.textBaseline='top';ctx.fillStyle=item.color;
+      const plan=planElementText(item,documentState.ratio,measure);plan.inkWidth=Math.min(w,Math.max(20,...plan.lines.map(line=>measure(line,plan.size))));plans.set(item.id,plan);overflow ||= item.opacity>0 && !!item.text && plan.overflow;
+      const textHeight=item.autoHeight?Math.min(H-y,plan.height):h;
+      ctx.beginPath();ctx.rect(x,y,w,textHeight);ctx.clip();ctx.font=`750 ${plan.size}px ${family}`;ctx.textBaseline='top';ctx.fillStyle=item.color;
       plan.lines.forEach((line,i)=>{let px=x;const width=ctx.measureText(line).width;if(item.align==='center')px+=(w-width)/2;if(item.align==='right')px+=w-width;ctx.fillText(line,px,y+i*plan.size*1.34);});
     }
     ctx.restore();
   }
   return {canvas:c,layout:{overflow,plans}};
 }
-function positionSelection(){const item=active();selection.hidden=!item||!showSelection;if(!item)return;selection.style.left=item.x*100+'%';selection.style.top=item.y*100+'%';selection.style.width=item.width*100+'%';selection.style.height=item.height*100+'%';selection.querySelector('span').textContent=(item.type==='text'?'TEXT':item.type==='image'?'IMAGE':'SHAPE')+' · 드래그로 이동';}
+function positionSelection(){const item=active();selection.hidden=!item||!showSelection;if(!item)return;selection.style.left=item.x*100+'%';selection.style.top=item.y*100+'%';selection.style.width=item.width*100+'%';const plan=objectLayouts.get(item.id);const height=item.type==='text'&&item.autoHeight&&plan?Math.min(1-item.y,plan.height/canvas.height):item.height;selection.style.height=height*100+'%';selection.querySelector('span').textContent=(item.type==='text'?'TEXT':item.type==='image'?'IMAGE':'SHAPE')+' · 드래그로 이동';}
 async function draw(){
   const token=++revision,current={...doc};
   try{const result=await renderArtwork(current);if(token!==revision)return;canvas.width=result.canvas.width;canvas.height=result.canvas.height;canvas.getContext('2d').drawImage(result.canvas,0,0);layout=result.layout;objectLayouts.clear();layout.plans.forEach((v,k)=>objectLayouts.set(k,v));
     paper.style.width=Math.min(window.innerWidth>1500?400:370,460*canvas.width/canvas.height)+'px';positionSelection();$('#dimensions').textContent=`${canvas.width} × ${canvas.height} px`;
-    const item=active(),plan=item&&objectLayouts.get(item.id);$('#layout-note').textContent=layout.overflow?'일부 문구가 상자를 넘습니다. 상자를 키우거나 글을 줄여 주세요.':plan&&plan.size<item.size?`문구가 잘리지 않도록 ${plan.size}px로 자동 맞춤했어요.`:'';
+    const item=active(),plan=item&&objectLayouts.get(item.id);if(item?.autoHeight&&plan){const actualHeight=Math.round(Math.min(1-item.y,plan.height/canvas.height)*100);$('#height-output').textContent=actualHeight+'% · 자동';$('#height').value=actualHeight;}$('#layout-note').textContent=layout.overflow?'일부 문구가 상자를 넘습니다. 상자를 키우거나 글을 줄여 주세요.':plan&&plan.size<item.size?`문구가 잘리지 않도록 ${plan.size}px로 자동 맞춤했어요.`:'';
     canvas.setAttribute('aria-label','카드 미리보기: '+doc.elements.filter(e=>e.type==='text').map(e=>e.text).join(' / '));
   }catch(error){toast(safeError(error),true);}
 }
@@ -98,7 +96,7 @@ function sync(){
 function change(patch,{record=true,clearSelection=false}={}){if('text' in patch && 'ratio' in patch)patch={...patch,elements:elementsOf(patch),decorations:patch.decorations??true,backgroundColor:patch.backgroundColor||PALETTES[patch.preset][0]};if(record)checkpoint();doc=upgradeDocument({...doc,...patch});if(clearSelection)selectedId=null;sync();markSave();}
 function updateSelected(patch,record=true){const item=active();if(!item)return;const next=fitElement(item,patch);change({elements:doc.elements.map(e=>e.id===item.id?next:e)},{record});}
 function addElement(item){if(doc.elements.length>=50)throw new Error('요소는 최대 50개까지 추가할 수 있습니다.');const element=fitElement({id:crypto.randomUUID(),opacity:1,...item},{});selectedId=element.id;change({elements:[...doc.elements,element]});}
-function addText(){addElement({type:'text',text:'새로운 문구',font:'sans',size:80,color:'#28251f',align:'left',x:.12,y:.35,width:.70,height:.22});$('#text').focus();}
+function addText(){addElement({type:'text',text:'새로운 문구',font:'sans',size:80,color:'#28251f',align:'left',x:.12,y:.35,width:.70,height:.22,autoHeight:true});$('#text').focus();}
 function addShape(shape){addElement({type:'shape',shape,color:'#f18a53',x:.25,y:.45,width:.35,height:.25});$('#shape-dialog').close();}
 function duplicate(){const item=active();if(item)addElement({...item,id:crypto.randomUUID(),x:item.x+.025,y:item.y+.025});}
 function deleteElement(){const id=selectedId;if(!id)return;change({elements:doc.elements.filter(item=>item.id!==id)},{clearSelection:true});}
@@ -116,8 +114,8 @@ $$('[data-ratio]').forEach(b=>b.addEventListener('click',()=>change({ratio:b.dat
 $('#decorations').addEventListener('change',e=>change({decorations:e.target.checked}));$('#background-color').addEventListener('change',e=>change({backgroundColor:e.target.value,decorations:false,image:null}));
 function pointerStart(e,resize=false){
   if(e.button!==0)return;const rect=paper.getBoundingClientRect(),x=(e.clientX-rect.left)/rect.width,y=(e.clientY-rect.top)/rect.height;
-  const targets=doc.elements.map(item=>{const plan=objectLayouts.get(item.id);if(item.type!=='text'||!plan)return item;const inkWidth=plan.inkWidth/canvas.width;return {...item,x:item.x+(item.align==='right'?item.width-inkWidth:item.align==='center'?(item.width-inkWidth)/2:0),width:inkWidth,height:Math.min(item.height,plan.height/canvas.height)};});
-  const hit=resize?active():hitElement(targets,x,y),item=hit&&doc.elements.find(el=>el.id===hit.id);select(item?.id||null);if(!item)return;checkpoint();drag={kind:resize?'resize':'move',id:item.id,start:{...item},x,y,rect};paper.setPointerCapture(e.pointerId);e.preventDefault();
+  const targets=doc.elements.map(item=>{const plan=objectLayouts.get(item.id);if(item.type!=='text'||!plan)return item;const inkWidth=plan.inkWidth/canvas.width;return {...item,x:item.x+(item.align==='right'?item.width-inkWidth:item.align==='center'?(item.width-inkWidth)/2:0),width:inkWidth,height:Math.min(item.autoHeight?1-item.y:item.height,plan.height/canvas.height)};});
+  const hit=resize?active():hitElement(targets,x,y),item=hit&&doc.elements.find(el=>el.id===hit.id);select(item?.id||null);if(!item)return;checkpoint();const start={...item};if(resize&&item.type==='text'&&item.autoHeight){const plan=objectLayouts.get(item.id);if(plan)start.height=Math.min(1-item.y,plan.height/canvas.height);}drag={kind:resize?'resize':'move',id:item.id,start,x,y,rect};paper.setPointerCapture(e.pointerId);e.preventDefault();
 }
 paper.addEventListener('pointerdown',e=>pointerStart(e,e.target.closest('.resize-handle')!==null));
 paper.addEventListener('pointermove',e=>{if(!drag)return;const dx=(e.clientX-drag.rect.left)/drag.rect.width-drag.x,dy=(e.clientY-drag.rect.top)/drag.rect.height-drag.y;let patch;

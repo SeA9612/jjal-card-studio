@@ -1,6 +1,6 @@
 const finite = (n,min,max) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max;
 const color = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
-export const SHAPES = ['rect','ellipse','triangle','star'];
+export const SHAPES = ['rect','ellipse','triangle','star','heart','bubble','roundrect','diamond','arrow','hexagon'];
 
 export function validateElements(items, validateImage) {
   if (!Array.isArray(items) || items.length > 50) throw new Error('카드 한 장에는 최대 50개 요소를 사용할 수 있습니다.');
@@ -14,7 +14,10 @@ export function validateElements(items, validateImage) {
     const base = { id:item.id, type:item.type, x:item.x, y:item.y, width:item.width, height:item.height, opacity:item.opacity };
     if (item.type === 'text') {
       if (typeof item.text !== 'string' || item.text.length > 12000 || !['sans','serif'].includes(item.font) || !finite(item.size,12,240) || !color(item.color) || !['left','center','right'].includes(item.align)) throw new Error('텍스트 요소가 올바르지 않습니다.');
-      return { ...base, text:item.text, font:item.font, size:item.size, color:item.color, align:item.align };
+      const result={ ...base, text:item.text, font:item.font, size:item.size, color:item.color, align:item.align };
+      if(item.preferredWidth!==undefined){if(!finite(item.preferredWidth,.02,1))throw new Error('텍스트의 기준 너비가 올바르지 않습니다.');result.preferredWidth=item.preferredWidth;}
+      if(item.autoHeight!==undefined){if(typeof item.autoHeight!=='boolean')throw new Error('텍스트 높이 설정이 올바르지 않습니다.');result.autoHeight=item.autoHeight;}
+      return result;
     }
     if (item.type === 'shape') {
       if (!SHAPES.includes(item.shape) || !color(item.color)) throw new Error('도형 종류 또는 색상이 올바르지 않습니다.');
@@ -37,6 +40,14 @@ export function upgradeDocument(doc) { return { ...doc, text:'', elements:elemen
 export function fitElement(element,patch) {
   const next={...element,...patch};
   next.width=Math.max(.02,Math.min(1,next.width));next.height=Math.max(.02,Math.min(1,next.height));
+  if(next.type==='text'){
+    next.preferredWidth=Math.max(.02,Math.min(1,patch.width??element.preferredWidth??element.width));
+    next.x=Math.max(0,Math.min(.98,next.x));next.y=Math.max(0,Math.min(.98,next.y));
+    next.width=Math.min(next.preferredWidth,1-next.x);next.height=Math.min(next.height,1-next.y);
+    if(Object.hasOwn(patch,'height'))next.autoHeight=false;
+    else if(['x','y','width'].some(key=>Object.hasOwn(patch,key)))next.autoHeight=true;
+    return next;
+  }
   next.x=Math.max(0,Math.min(1-next.width,next.x));next.y=Math.max(0,Math.min(1-next.height,next.y));
   return next;
 }
