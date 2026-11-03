@@ -1,0 +1,7 @@
+{
+  "images": [
+    {"file":"card-1.png","creation":"본 프로젝트에서 직접 제작","source":"Canvas 도형과 자체 작성 문구","ratio":"4:5"},
+    {"file":"card-2.png","creation":"본 프로젝트에서 직접 제작","source":"Canvas 도형과 자체 작성 문구","ratio":"1:1"},
+    {"file":"card-3.png","creation":"본 프로젝트에서 직접 제작","source":"Canvas 도형과 자체 작성 문구","ratio":"9:16"}
+  ]
+}
