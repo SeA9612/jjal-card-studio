@@ -59,7 +59,7 @@ async function draw() {
     paper.style.width=Math.min(window.innerWidth>1500?400:370,460*canvas.width/canvas.height)+'px';
     selection.style.left=(layout.x/canvas.width*100)+'%';selection.style.top=(layout.y/canvas.height*100)+'%';selection.style.width=(layout.width/canvas.width*100)+'%';selection.style.height=(layout.height/canvas.height*100)+'%';selection.hidden=!showSelection||!doc.text;
     $('#dimensions').textContent=`${canvas.width} × ${canvas.height} px`;
-    $('#layout-note').textContent=layout.overflow?'文구가 영역을 넘습니다. 글을 줄이거나 위치를 위로 옮겨 주세요.':layout.size<doc.size?`문구가 잘리지 않도록 ${layout.size}px로 자동 맞춤했어요.`:'';
+    $('#layout-note').textContent=layout.overflow?'문구가 영역을 넘습니다. 글을 줄이거나 위치를 위로 옮겨 주세요.':layout.size<doc.size?`문구가 잘리지 않도록 ${layout.size}px로 자동 맞춤했어요.`:'';
     canvas.setAttribute('aria-label','카드 미리보기: '+(doc.text||'빈 문구'));
   } catch(error){toast(safeError(error),true);}
 }
