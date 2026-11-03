@@ -1,5 +1,5 @@
-import { DEFAULT, RATIOS, PALETTES, STARTERS, planText, validateDocument, validateBackup, validateImage, identifyImage } from './core.js?v=20261103-layers1';
-import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js';
+import { DEFAULT, RATIOS, PALETTES, STARTERS, planText, validateDocument, validateBackup, validateImage, identifyImage } from './core.js?v=20261103-layers2';
+import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261103-layers2';
 import { readAll, readSetting, writeSetting, transaction } from './storage.js';
 
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
