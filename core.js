@@ -1,4 +1,4 @@
-import { validateElements } from './elements.js?v=20261103-handle1';
+import { validateElements } from './elements.js?v=20261104-backup1';
 export const RATIOS = { '1:1': [1080, 1080], '4:5': [1080, 1350], '9:16': [1080, 1920] };
 export const DEFAULT = { text: '오늘을\n기록하는\n작은 취향.', ratio: '4:5', font: 'sans', size: 100, color: '#28251f', x: .09, y: .23, align: 'left', preset: 0, image: null };
 export const PALETTES = [['#eadfcf', '#e58a54', '#28251f'], ['#bdd1d3', '#6988a9', '#233a46'], ['#eddc91', '#83945d', '#2f3522']];
@@ -75,7 +75,8 @@ export function validateImage(input) {
 }
 
 export function validateBackup(input) {
-  if (!object(input) || input.app !== 'jjal-card-studio' || input.version !== 1 || !Array.isArray(input.templates)) fail('백업 형식 또는 버전이 올바르지 않습니다.');
+  if (!object(input) || input.app !== 'jjal-card-studio' || ![1,2].includes(input.version) || !Array.isArray(input.templates)) fail('백업 형식 또는 버전이 올바르지 않습니다.');
+  if(input.version===2)validateDocument(input.editor);
   if (input.templates.length > 30) fail('한 번에 가져올 수 있는 템플릿은 최대 30개입니다.');
   const ids = new Set();
   return input.templates.map((t, i) => {
@@ -85,6 +86,16 @@ export function validateBackup(input) {
     ids.add(t.id);
     return { id: t.id, name: t.name.trim(), updatedAt: t.updatedAt, doc: validateDocument(t.doc) };
   });
+}
+export function validateBackupContents(input){
+  const templates=validateBackup(input),editor=input.version===2?validateDocument(input.editor):null;
+  if(!editor&&!templates.length)fail('이 파일에는 복원할 카드가 없습니다(템플릿 0개). 이전 백업에는 편집 중인 카드가 포함되지 않았습니다. 원래 작업이 있는 브라우저에서 새 백업을 만들어 주세요.');
+  return {templates,editor};
+}
+export function createBackup(editor,templates,exportedAt=new Date().toISOString()){
+  const backup={app:'jjal-card-studio',version:2,exportedAt,editor:validateDocument(editor),templates};
+  const checked=validateBackupContents(backup);
+  return {...backup,...checked};
 }
 export function identifyImage(bytes) {
   if (bytes.length >= 8 && [137,80,78,71,13,10,26,10].every((b,i) => bytes[i] === b)) return 'image/png';

@@ -30,3 +30,12 @@ export async function transaction(store, perform) {
   });
 }
 export const writeSetting = (key,value) => transaction('settings',store=>store.put(value,key));
+export async function restoreBackupItems(items,editor){
+  const db=await openDatabase();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(['templates','settings'],'readwrite');
+    tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('복원이 취소되었습니다.'));
+    try{for(const item of items)tx.objectStore('templates').put(item);if(editor)tx.objectStore('settings').put(editor,'backup-editor');}
+    catch(error){tx.abort();reject(error);}
+  });
+}

@@ -1,14 +1,15 @@
-import { normalizeRotation, draggedRotation, rotateContext, resizeInRotation } from './rotation.js?v=20261103-handle1';
-import { encodeImage } from './export.js?v=20261103-handle1';
-import { paintShape } from './shapes.js?v=20261103-handle1';
-import { DEFAULT, RATIOS, PALETTES, STARTERS, planElementText, validateDocument, validateBackup, validateImage, identifyImage } from './core.js?v=20261103-handle1';
-import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261103-handle1';
-import { readAll, readSetting, writeSetting, transaction } from './storage.js';
+import { normalizeRotation, draggedRotation, rotateContext, resizeInRotation } from './rotation.js?v=20261104-backup1';
+import { encodeImage } from './export.js?v=20261104-backup1';
+import { paintShape } from './shapes.js?v=20261104-backup1';
+import { DEFAULT, RATIOS, PALETTES, STARTERS, planElementText, validateDocument, validateBackupContents, createBackup, validateImage, identifyImage } from './core.js?v=20261104-backup1';
+import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261104-backup1';
+import { readAll, readSetting, writeSetting, transaction, restoreBackupItems } from './storage.js?v=20261104-backup1';
 
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
 const canvas = $('#canvas'), paper = $('.paper'), selection = $('.selection');
 let doc = upgradeDocument(DEFAULT), selectedId = null, history = [], future = [], templates = [], library = 'starter', showSelection = true;
 let layout, revision = 0, saveTimer, drawTimer, toastTimer, templateEditId = null, confirmCallback, pendingImage = null, creditTarget = 'background', drag;
+let backupDownloadUrl=null,importingBackup=false;
 let uploadRevision = 0, saveQueue = Promise.resolve(), storageReady = false;
 const imageCache = new Map(), objectLayouts = new Map();
 const shapeNames = {rect:'사각형',ellipse:'원',triangle:'삼각형',star:'별',heart:'하트',bubble:'말풍선',roundrect:'둥근 사각형',diamond:'마름모',arrow:'화살표',hexagon:'육각형'};
@@ -217,25 +218,48 @@ async function downloadImage(documentState,name='frame-card',format='png'){
   const credit=documentState.image?.credit||{kind:'own',url:'',license:'직접 구성한 도형 배경'};
   $('#save-state').textContent='● '+label+' 생성 완료 · '+(credit.kind==='own'?'본인 제작 배경':'외부 이미지 출처 기록됨');
 }
-async function exportJSON(){await refreshTemplates();const backup={app:'jjal-card-studio',version:1,exportedAt:new Date().toISOString(),templates};downloadBlob(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),'jjal-card-templates.json');$('#backup-result').textContent=`템플릿 ${templates.length}개를 JSON으로 내보냈습니다.`;}
+async function showBackupCards(editor,items){
+  const grid=$('#backup-previews');grid.replaceChildren();
+  for(const item of [...(editor?[{name:'백업한 현재 작업',doc:editor}]:[]),...items]){
+    const card=document.createElement('article'),img=document.createElement('img'),label=document.createElement('strong'),button=document.createElement('button');card.className='backup-card';img.alt=item.name+' 미리보기';label.textContent=item.name;button.type='button';button.textContent='편집기로 열기';button.setAttribute('aria-label',item.name+' 편집기로 열기');
+    button.addEventListener('click',()=>{change(upgradeDocument(validateDocument(item.doc)),{clearSelection:true});$('#backup-dialog').close();$('.stage').scrollIntoView({behavior:'smooth',block:'start'});toast(item.name+'을 편집기에 열었습니다.');});
+    card.append(img,label,button);grid.append(card);
+    try{img.src=(await renderArtwork(item.doc)).canvas.toDataURL('image/jpeg',.7);}catch{img.alt='미리보기를 표시하지 못했습니다.';}
+  }
+  grid.hidden=!grid.childElementCount;
+}
+async function openBackup(){
+  await refreshTemplates();$('#backup-summary').textContent=`현재 작업 1개 + 내 템플릿 ${templates.length}개를 이미지와 함께 백업합니다.`;
+  $('#backup-result').textContent='';$('#view-imported-templates').hidden=true;await showBackupCards(null,[]);$('#backup-dialog').showModal();
+  try{const recovered=await readSetting('backup-editor');if(recovered){await showBackupCards(validateDocument(recovered),[]);$('#backup-result').textContent='최근 복원한 현재 작업입니다. 아래 버튼으로 다시 열 수 있습니다.';}}catch(error){$('#backup-result').textContent=safeError(error);}
+}
+async function exportJSON(){
+  const current={...doc};await refreshTemplates();const backup=createBackup(current,templates);
+  if(backupDownloadUrl)URL.revokeObjectURL(backupDownloadUrl);
+  backupDownloadUrl=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+  const link=$('#backup-download');link.href=backupDownloadUrl;link.download='jjal-card-backup-'+new Date().toISOString().slice(0,10)+'.json';link.hidden=false;link.click();
+  $('#backup-result').textContent=`현재 작업 1개와 내 템플릿 ${templates.length}개가 담긴 파일의 다운로드를 요청했습니다. 파일이 보이지 않으면 아래 다운로드 링크 또는 Chrome 다운로드 목록(Ctrl+J)을 확인하세요.`;
+}
 $('#json-input').addEventListener('change',async e=>{
-  const file=e.target.files[0];e.target.value='';if(!file)return;
+  const file=e.target.files[0];e.target.value='';if(!file||importingBackup)return;importingBackup=true;e.target.disabled=true;
   const result=$('#backup-result');result.textContent='가져올 파일을 검사하고 있습니다…';
   try{
     if(file.size>40*1024*1024)throw new Error('JSON 파일은 40MB 이하여야 합니다.');
     let data;try{data=JSON.parse(await file.text());}catch{throw new Error('JSON 문법이 손상되었습니다.');}
-    const imported=validateBackup(data);await refreshTemplates();if(imported.length+templates.length>30)throw new Error('가져온 뒤 템플릿 수가 30개를 넘습니다. 먼저 기존 목록을 정리해 주세요.');
-    for(const t of imported){const images=[t.doc.image,...elementsOf(t.doc).filter(e=>e.type==='image').map(e=>e.image)].filter(Boolean);for(const asset of images){const img=await imageElement(asset.dataUrl);if(img.naturalWidth!==asset.width||img.naturalHeight!==asset.height)throw new Error('이미지의 실제 크기와 기록된 크기가 다릅니다.');}}
+    const {templates:imported,editor}=validateBackupContents(data);await refreshTemplates();if(imported.length+templates.length>30)throw new Error('가져온 뒤 템플릿 수가 30개를 넘습니다. 먼저 기존 목록을 정리해 주세요.');
+    for(const documentState of [...imported.map(t=>t.doc),...(editor?[editor]:[])]){const images=[documentState.image,...elementsOf(documentState).filter(e=>e.type==='image').map(e=>e.image)].filter(Boolean);for(const asset of images){const img=await imageElement(asset.dataUrl);if(img.naturalWidth!==asset.width||img.naturalHeight!==asset.height)throw new Error('이미지의 실제 크기와 기록된 크기가 다릅니다.');}}
     const ids=new Set(templates.map(t=>t.id));const additions=imported.map(t=>{const next={...t};if(ids.has(next.id)){next.id=crypto.randomUUID();next.name=(next.name+' (복사본)').slice(0,50);}ids.add(next.id);return next;});
-    await transaction('templates',store=>additions.forEach(t=>store.put(t)));await refreshTemplates();library='mine';await displayLibrary();result.textContent=`템플릿 ${additions.length}개를 복원했습니다. 기존 템플릿도 유지됩니다.`;
+    await restoreBackupItems(additions,editor);await refreshTemplates();$('#backup-summary').textContent=`현재 작업 1개 + 내 템플릿 ${templates.length}개를 이미지와 함께 백업합니다.`;library='mine';await displayLibrary();await showBackupCards(editor,additions);$('#view-imported-templates').hidden=!additions.length;result.textContent=`${editor?'현재 작업 1개와 ':''}템플릿 ${additions.length}개를 복원했습니다. 아래 미리보기의 ‘편집기로 열기’를 누르세요.`;
   }catch(error){result.textContent=safeError(error)+' 기존 템플릿과 편집 내용은 변경하지 않았습니다.';toast(result.textContent,true);}
+  finally{importingBackup=false;e.target.disabled=false;}
 });
+$('#view-imported-templates').addEventListener('click',()=>{$('#backup-dialog').close();$('#library').scrollIntoView({behavior:'smooth',block:'start'});});
 async function showGallery(){const format=$('#export-format').value;const grid=$('#gallery-grid');grid.replaceChildren();for(let i=0;i<STARTERS.length;i++){const item=STARTERS[i],article=document.createElement('article');article.className='gallery-item';const img=document.createElement('img');img.src=`./examples/card-${i+1}.png`;img.alt=item.name+' 완성 이미지';const title=document.createElement('h3');title.textContent=item.name+' · '+item.doc.ratio;const button=document.createElement('button');button.textContent=format.toUpperCase()+' 다운로드';button.addEventListener('click',()=>downloadImage(item.doc,'example-'+(i+1),format).catch(error=>toast(safeError(error),true)));article.append(img,title,button);grid.append(article);}$('#gallery-dialog').showModal();}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-action]');if(!b)return;
   try{switch(b.dataset.action){
     case 'help':$('#help-dialog').showModal();break;
-    case 'backup':$('#backup-result').textContent='';$('#backup-dialog').showModal();break;
+    case 'backup':await openBackup();break;
     case 'export-json':await exportJSON();break;
     case 'save-template':openTemplate();break;
     case 'image':$('#object-image-input').click();break;
