@@ -1,9 +1,10 @@
-import { normalizeRotation, draggedRotation, rotateContext, resizeInRotation } from './rotation.js?v=20261104-backup1';
-import { encodeImage } from './export.js?v=20261104-backup1';
-import { paintShape } from './shapes.js?v=20261104-backup1';
-import { DEFAULT, RATIOS, PALETTES, STARTERS, planElementText, validateDocument, validateBackupContents, createBackup, validateImage, identifyImage } from './core.js?v=20261104-backup1';
-import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261104-backup1';
-import { readAll, readSetting, writeSetting, transaction, restoreBackupItems } from './storage.js?v=20261104-backup1';
+import { checkBackupFileSize, createBackupBlob } from './backup-file.js?v=20261104-backup-size1';
+import { normalizeRotation, draggedRotation, rotateContext, resizeInRotation } from './rotation.js?v=20261104-backup-size1';
+import { encodeImage } from './export.js?v=20261104-backup-size1';
+import { paintShape } from './shapes.js?v=20261104-backup-size1';
+import { DEFAULT, RATIOS, PALETTES, STARTERS, planElementText, validateDocument, validateBackupContents, createBackup, validateImage, identifyImage } from './core.js?v=20261104-backup-size1';
+import { elementsOf, upgradeDocument, fitElement, hitElement, reorderElement } from './elements.js?v=20261104-backup-size1';
+import { readAll, readSetting, writeSetting, transaction, restoreBackupItems } from './storage.js?v=20261104-backup-size1';
 
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
 const canvas = $('#canvas'), paper = $('.paper'), selection = $('.selection');
@@ -236,7 +237,9 @@ async function openBackup(){
 async function exportJSON(){
   const current={...doc};await refreshTemplates();const backup=createBackup(current,templates);
   if(backupDownloadUrl)URL.revokeObjectURL(backupDownloadUrl);
-  backupDownloadUrl=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+  $('#backup-download').hidden=true;
+  let blob;try{blob=createBackupBlob(backup);}catch(error){$('#backup-result').textContent=safeError(error);throw error;}
+  backupDownloadUrl=URL.createObjectURL(blob);
   const link=$('#backup-download');link.href=backupDownloadUrl;link.download='jjal-card-backup-'+new Date().toISOString().slice(0,10)+'.json';link.hidden=false;link.click();
   $('#backup-result').textContent=`현재 작업 1개와 내 템플릿 ${templates.length}개가 담긴 파일의 다운로드를 요청했습니다. 파일이 보이지 않으면 아래 다운로드 링크 또는 Chrome 다운로드 목록(Ctrl+J)을 확인하세요.`;
 }
@@ -244,7 +247,7 @@ $('#json-input').addEventListener('change',async e=>{
   const file=e.target.files[0];e.target.value='';if(!file||importingBackup)return;importingBackup=true;e.target.disabled=true;
   const result=$('#backup-result');result.textContent='가져올 파일을 검사하고 있습니다…';
   try{
-    if(file.size>40*1024*1024)throw new Error('JSON 파일은 40MB 이하여야 합니다.');
+    checkBackupFileSize(file.size);
     let data;try{data=JSON.parse(await file.text());}catch{throw new Error('JSON 문법이 손상되었습니다.');}
     const {templates:imported,editor}=validateBackupContents(data);await refreshTemplates();if(imported.length+templates.length>30)throw new Error('가져온 뒤 템플릿 수가 30개를 넘습니다. 먼저 기존 목록을 정리해 주세요.');
     for(const documentState of [...imported.map(t=>t.doc),...(editor?[editor]:[])]){const images=[documentState.image,...elementsOf(documentState).filter(e=>e.type==='image').map(e=>e.image)].filter(Boolean);for(const asset of images){const img=await imageElement(asset.dataUrl);if(img.naturalWidth!==asset.width||img.naturalHeight!==asset.height)throw new Error('이미지의 실제 크기와 기록된 크기가 다릅니다.');}}
