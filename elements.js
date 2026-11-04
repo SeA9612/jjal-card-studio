@@ -1,4 +1,4 @@
-import { unrotatePoint } from './rotation.js?v=20261104-backup-size1';
+import { unrotatePoint } from './rotation.js?v=20261104-image-ratio1';
 const finite = (n,min,max) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max;
 const color = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
 export const SHAPES = ['rect','ellipse','triangle','star','heart','bubble','roundrect','diamond','arrow','hexagon'];
@@ -10,7 +10,9 @@ export function validateElements(items, validateImage) {
     if (!item || typeof item !== 'object' || typeof item.id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(item.id) || ids.has(item.id)) throw new Error('요소의 ID가 없거나 중복됩니다.');
     ids.add(item.id);
     if (!['text','image','shape'].includes(item.type)) throw new Error('지원하지 않는 요소입니다.');
-    if (!finite(item.x,0,.98) || !finite(item.y,0,.98) || !finite(item.width,.02,1) || !finite(item.height,.02,1) || !finite(item.opacity,0,1)) throw new Error('요소의 위치·크기·투명도가 올바르지 않습니다.');
+    const minSize=item.type==='image'?.000001:.02;
+    const maxPosition=item.type==='image'?1-minSize:.98;
+    if (!finite(item.x,0,maxPosition) || !finite(item.y,0,maxPosition) || !finite(item.width,minSize,1) || !finite(item.height,minSize,1) || !finite(item.opacity,0,1)) throw new Error('요소의 위치·크기·투명도가 올바르지 않습니다.');
     if (item.x + item.width > 1.001 || item.y + item.height > 1.001) throw new Error('요소가 캔버스 영역을 넘습니다.');
     const base = { id:item.id, type:item.type, x:item.x, y:item.y, width:item.width, height:item.height, opacity:item.opacity };
     if(item.rotation!==undefined){if(!finite(item.rotation,-180,180))throw new Error('회전 각도가 올바르지 않습니다.');base.rotation=item.rotation;}
@@ -30,6 +32,7 @@ export function validateElements(items, validateImage) {
       return result;
     }
     if (!item.image) throw new Error('이미지 요소의 이미지가 없습니다.');
+    if(item.aspectLocked!==undefined){if(typeof item.aspectLocked!=='boolean')throw new Error('이미지 비율 유지 설정이 올바르지 않습니다.');base.aspectLocked=item.aspectLocked;}
     return { ...base, image:validateImage(item.image) };
   });
 }
@@ -45,7 +48,8 @@ export function elementsOf(doc) {
 export function upgradeDocument(doc) { return { ...doc, text:'', elements:elementsOf(doc).map(item=>({...item})) }; }
 export function fitElement(element,patch) {
   const next={...element,...patch};
-  next.width=Math.max(.02,Math.min(1,next.width));next.height=Math.max(.02,Math.min(1,next.height));
+  const minSize=next.type==='image'?.000001:.02;
+  next.width=Math.max(minSize,Math.min(1,next.width));next.height=Math.max(minSize,Math.min(1,next.height));
   if(next.type==='text'){
     next.preferredWidth=Math.max(.02,Math.min(1,patch.width??element.preferredWidth??element.width));
     next.x=Math.max(0,Math.min(.98,next.x));next.y=Math.max(0,Math.min(.98,next.y));
